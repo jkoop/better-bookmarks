@@ -2,7 +2,7 @@
 
 Minetest mod to keep location bookmarks like /sethome
 
-![screenshot](https://raw.githubusercontent.com/joek2/bookmarks/master/screenshot.png)
+![screenshot](screenshot.png)
 
 ## Commands:
 
