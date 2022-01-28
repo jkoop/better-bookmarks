@@ -1,117 +1,77 @@
------------------------------------------------
---  Bookmarks v0.1.1 rewritten by Joe Koop   --
---  Copyright 2019 and MIT licence Joe Koop  --
---  https://joekoop.com/bookmarks/           --
------------------------------------------------
+-------------------------------------------------
+--  Copyleft 2019-2022 Joe Koop                --
+--  https://github.com/jkoop/better-bookmarks  --
+-------------------------------------------------
 
-function round(n)
-	return n % 1 >= 0.5 and math.ceil(n) or math.floor(n)
-end
+-- using memory, not disk, during development
+bookmarks = {}
 
-local write_gofile = function()
-	local output = ''
-	for player, user in pairs(GONETWORK) do
-		output = output..player..'{'
-		for name, coords in pairs(GONETWORK[player]) do
-			output = output..name..'('..coords.x..','..coords.y..','..coords.z..')'
-		end
-		output = output..'}'
+local function writeBookmark(longBookmarkName, position)
+	if not (longBookmarkName and position) then
+		return false
 	end
-	local f = io.open(minetest.get_worldpath()..'/bookmarks.dat', "w")
-    f:write(output)
-    io.close(f)
+
+	-- set the bookmark
+	bookmarks[longBookmarkName] = position
+
+	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+
+	return true
 end
 
-GONETWORK = {}
+local function readBookmark(longBookmarkName)
+	if not longBookmarkName then
+		return false
+	end
 
-local gonfile = io.open(minetest.get_worldpath()..'/bookmarks.dat', "r")
-if gonfile then
-	local contents = gonfile:read()
-	io.close(gonfile)
-	if contents ~= nil then
-		local users = contents:split("}")
-		for h,user in pairs(users) do
-			local player, bookmarks = unpack(user:split("{"))
-			GONETWORK[player] = {}
-			local entries = bookmarks:split(")")
-			for i,entry in pairs(entries) do
-				local goname, coords = unpack(entry:split("("))
-				local p = {}
-				p.x, p.y, p.z = string.match(coords, "^([%d.-]+)[, ] *([%d.-]+)[, ] *([%d.-]+)$")
-				if p.x and p.y and p.z then
-					GONETWORK[player][goname] = {x = tonumber(p.x),y= tonumber(p.y),z = tonumber(p.z)}
-				end
-			end
-		end
+	return bookmarks[longBookmarkName] or false
+end
+
+local function setBookmark(playerName, bookmarkName)
+	if bookmarkName == "" then
+		return false, "Invalid usage, see /help bmset."
+	end
+
+	local player = minetest.get_player_by_name(playerName)
+
+	-- player can't set bookmark if they're not in the world
+	if not minetest.is_player(player) then
+		return false, "You are not online."
+	end
+
+	local playerPosition = player.get_pos(player) -- <- that's anoying
+
+	if writeBookmark(playerName .. '.' .. bookmarkName, playerPosition) then
+		return true, "Bookmark set."
+	else
+		return false, "Couldn't set bookmark. This is a bug."
+	end
+end
+
+local function goToBookmark(playerName, bookmarkName)
+	if bookmarkName == "" then
+		return false, "Invalid usage, see /help bm."
+	end
+
+	local player = minetest.get_player_by_name(playerName)
+
+	local bookmarkPosition = readBookmark(playerName .. '.' .. bookmarkName)
+
+	if bookmarkPosition then
+		return true, minetest.pos_to_string(bookmarkPosition, 0)
+	else
+		return false, "Couldn't get bookmark."
 	end
 end
 
 minetest.register_chatcommand("bmset", {
-	params = "<bookmark name>",
+	params = "bookmark-name",
 	description = "Set a bookmark",
-	func = function(name, param)
-		local target = minetest.env:get_player_by_name(name)
-		if param == "" then
-			minetest.chat_send_player(name, "Nameless bookmark rename to \"nil\"")
-			param = "nil"
-		end
-		if target then
-			if GONETWORK[name] == nil then
-				GONETWORK[name] = {}
-			end
-			GONETWORK[name][param] = target:getpos()
-			write_gofile()
-			minetest.chat_send_player(name, "Bookmark \""..param.."\" set")
-			return
-		end
-	end,
+	func = setBookmark
 })
 
 minetest.register_chatcommand("bm", {
-	params = "<bookmark name>",
-	description = "Go to bookmark",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		if GONETWORK[name][param] == nil then
-			minetest.chat_send_player(name, "No such bookmark: \""..param..'"')
-			return
-		end
-		teleportee = minetest.env:get_player_by_name(name)
-		teleportee:setpos(GONETWORK[name][param])
-		minetest.chat_send_player(name, "Teleported to bookmark \""..param.."\"")
-	end,
-})
-
-minetest.register_chatcommand("bmdel", {
-	params = "<bookmark name>",
-	description = "Delete bookmark",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		if GONETWORK[name][param] then
-			GONETWORK[name][param] = nil
-			write_gofile()
-			minetest.chat_send_player(name, "Bookmark \""..param.."\" deleted")
-		end
-	end,
-})
-
-minetest.register_chatcommand("bmls", {
-	params = "<bookmark name>",
-	description = "List all your bookmarks",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		minetest.chat_send_player(name, 'Your bookmarks:')
-		for go, coords in pairs(GONETWORK[name]) do
-			minetest.chat_send_player(name, '"' ..go.. '" at '..round(coords.x)..','..round(coords.y)..','..round(coords.z))
-		end
-	end,
+	params = "bookmark-name",
+	description = "Go to a bookmark",
+	func = goToBookmark
 })
