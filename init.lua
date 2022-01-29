@@ -3,31 +3,46 @@
 --  https://github.com/jkoop/better-bookmarks  --
 -------------------------------------------------
 
--- using memory, not disk, during development
-bookmarks = {}
+local storage = minetest.get_mod_storage()
+local betterBookmarks = {}
 
-local function writeBookmark(longBookmarkName, position)
+function betterBookmarks.setPos(longBookmarkName, position)
 	if not (longBookmarkName and position) then
 		return false
 	end
 
 	-- set the bookmark
-	bookmarks[longBookmarkName] = position
+	storage:set_string(longBookmarkName, minetest.pos_to_string(position, 2))
 
-	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+	-- check bookmark
+	local success = betterBookmarks.getPos(longBookmarkName) == position
 
-	return true
+	if success then
+		minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+		return true
+	else
+		minetest.log("error", "[better_bookmarks] failed to set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+		return false
+	end
 end
 
-local function readBookmark(longBookmarkName)
+function betterBookmarks.getPos(longBookmarkName)
 	if not longBookmarkName then
 		return false
 	end
 
-	return bookmarks[longBookmarkName] or false
+	return minetest.string_to_pos(storage:get_string(longBookmarkName)) or false
 end
 
-local function setBookmark(playerName, bookmarkName)
+function betterBookmarks.delPos(longBookmarkName)
+	if not longBookmarkName then
+		return false
+	end
+
+	return storage:set_string(longBookmarkName, '')
+end
+
+function betterBookmarks.setBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
 		return false, "Invalid usage, see /help bmset."
 	end
@@ -41,21 +56,19 @@ local function setBookmark(playerName, bookmarkName)
 
 	local playerPosition = player.get_pos(player) -- <- that's anoying
 
-	if writeBookmark(playerName .. '.' .. bookmarkName, playerPosition) then
+	if betterBookmarks.setPos(playerName .. '.' .. bookmarkName, playerPosition) then
 		return true, "Bookmark set."
 	else
 		return false, "Couldn't set bookmark. This is a bug."
 	end
 end
 
-local function goToBookmark(playerName, bookmarkName)
+function betterBookmarks.goToBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
 		return false, "Invalid usage, see /help bm."
 	end
 
-	local player = minetest.get_player_by_name(playerName)
-
-	local bookmarkPosition = readBookmark(playerName .. '.' .. bookmarkName)
+	local bookmarkPosition = betterBookmarks.getPos(playerName .. '.' .. bookmarkName)
 
 	if bookmarkPosition then
 		return true, minetest.pos_to_string(bookmarkPosition, 0)
@@ -64,14 +77,34 @@ local function goToBookmark(playerName, bookmarkName)
 	end
 end
 
+function betterBookmarks.deleteBookmark(playerName, bookmarkName)
+	if bookmarkName == "" then
+		return false, "Invalid usage, see /help bmdel."
+	end
+
+	local success = betterBookmarks.delPos(playerName .. '.' .. bookmarkName)
+
+	if success then
+		return true, "Removed bookmark."
+	else
+		return false, "Couldn't remove bookmark."
+	end
+end
+
 minetest.register_chatcommand("bmset", {
 	params = "bookmark-name",
 	description = "Set a bookmark",
-	func = setBookmark
+	func = betterBookmarks.setBookmark
 })
 
 minetest.register_chatcommand("bm", {
 	params = "bookmark-name",
 	description = "Go to a bookmark",
-	func = goToBookmark
+	func = betterBookmarks.goToBookmark
+})
+
+minetest.register_chatcommand("bmdel", {
+	params = "bookmark-name",
+	description = "Delete a bookmark",
+	func = betterBookmarks.deleteBookmark
 })
