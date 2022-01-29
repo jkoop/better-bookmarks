@@ -118,10 +118,17 @@ end
 function betterBookmarks.listBookmarks(playerName)
 	local bookmarks = ''
 	local records = betterBookmarks.listRecords(playerName)
+	local player = minetest.get_player_by_name(playerName)
 
 	for longBookmarkName, record in pairs(records) do
 		local bookmarkName = longBookmarkName:match(playerName .. '.(.+)')
-		bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. '\n'
+
+		if not player then
+			bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. '\n'
+		else
+			local distance = math.floor(vector.distance(player:get_pos(), record.position) + 0.5) -- round to nearest integer
+			bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. ', ' .. distance .. ' blocks away\n'
+		end
 	end
 
 	if bookmarks == '' then
