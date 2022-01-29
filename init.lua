@@ -6,27 +6,29 @@
 local storage = minetest.get_mod_storage()
 local betterBookmarks = {}
 
-function betterBookmarks.setPos(longBookmarkName, position)
+function betterBookmarks.setRecord(longBookmarkName, position)
 	if not (longBookmarkName and position) then
 		return false
 	end
 
-	-- set the bookmark
-	storage:set_string(longBookmarkName, minetest.pos_to_string(position, 2))
+	local record = betterBookmarks.getRecord(longBookmarkName) or {}
+	record.position = position
+
+	storage:set_string(longBookmarkName, minetest.serialize(record))
 
 	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
 	return true
 end
 
-function betterBookmarks.getPos(longBookmarkName)
+function betterBookmarks.getRecord(longBookmarkName)
 	if not longBookmarkName then
 		return false
 	end
 
-	return minetest.string_to_pos(storage:get_string(longBookmarkName)) or false
+	return minetest.deserialize(storage:get_string(longBookmarkName)) or false
 end
 
-function betterBookmarks.delPos(longBookmarkName)
+function betterBookmarks.delRecord(longBookmarkName)
 	if not longBookmarkName then
 		return false
 	end
@@ -50,7 +52,7 @@ function betterBookmarks.setBookmark(playerName, bookmarkName)
 
 	local playerPosition = player.get_pos(player) -- <- that's anoying
 
-	if betterBookmarks.setPos(playerName .. '.' .. bookmarkName, playerPosition) then
+	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerPosition) then
 		return true, "Bookmark set."
 	else
 		return false, "Couldn't set bookmark. This is a bug."
@@ -62,10 +64,10 @@ function betterBookmarks.goToBookmark(playerName, bookmarkName)
 		return false, "Invalid usage, see /help bm."
 	end
 
-	local bookmarkPosition = betterBookmarks.getPos(playerName .. '.' .. bookmarkName)
+	local bookmarkPosition = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
 
 	if bookmarkPosition then
-		return true, minetest.pos_to_string(bookmarkPosition, 0)
+		return true, minetest.pos_to_string(bookmarkPosition.position, 0)
 	else
 		return false, "Couldn't get bookmark."
 	end
@@ -76,7 +78,7 @@ function betterBookmarks.deleteBookmark(playerName, bookmarkName)
 		return false, "Invalid usage, see /help bmdel."
 	end
 
-	local success = betterBookmarks.delPos(playerName .. '.' .. bookmarkName)
+	local success = betterBookmarks.delRecord(playerName .. '.' .. bookmarkName)
 
 	if success then
 		return true, "Removed bookmark."
