@@ -6,13 +6,19 @@
 local storage = minetest.get_mod_storage()
 local betterBookmarks = {}
 
-function betterBookmarks.setRecord(longBookmarkName, position)
+function betterBookmarks.setRecord(longBookmarkName, playerName, position)
 	if not (longBookmarkName and position) then
 		return false
 	end
 
 	local record = betterBookmarks.getRecord(longBookmarkName) or {}
-	record.position = position
+	record.position = minetest.string_to_pos(minetest.pos_to_string(position, 2)) -- round the position to 2 decimal places
+
+	if not record.playerNames then
+		record.playerNames = {}
+	end
+
+	record.playerNames[playerName] = true
 
 	storage:set_string(longBookmarkName, minetest.serialize(record))
 
@@ -38,6 +44,20 @@ function betterBookmarks.delRecord(longBookmarkName)
 	return true
 end
 
+function betterBookmarks.listRecords(playerName)
+	local records = {}
+
+	for longBookmarkName, record in pairs(storage:to_table()['fields']) do
+		record = minetest.deserialize(record)
+
+		if record.playerNames[playerName] then
+			records[longBookmarkName] = record
+		end
+	end
+
+	return records
+end
+
 function betterBookmarks.setBookmark(playerName, bookmarkName)
 	if bookmarkName == "" or string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
 		return false, "Invalid usage, see /help bmset."
@@ -52,7 +72,7 @@ function betterBookmarks.setBookmark(playerName, bookmarkName)
 
 	local playerPosition = player.get_pos(player) -- <- that's anoying
 
-	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerPosition) then
+	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, playerPosition) then
 		return true, "Bookmark set."
 	else
 		return false, "Couldn't set bookmark. This is a bug."
@@ -87,6 +107,18 @@ function betterBookmarks.deleteBookmark(playerName, bookmarkName)
 	end
 end
 
+function betterBookmarks.listBookmarks(playerName)
+	local bookmarks = ''
+	local records = betterBookmarks.listRecords(playerName)
+
+	for longBookmarkName, record in pairs(records) do
+		local bookmarkName = longBookmarkName:match(playerName .. '.(.+)')
+		bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. '\n'
+	end
+
+	return true, bookmarks
+end
+
 minetest.register_chatcommand("bmset", {
 	params = "bookmark-name",
 	description = "Set a bookmark. Bookmark names cannot contain '.'",
@@ -103,4 +135,10 @@ minetest.register_chatcommand("bmdel", {
 	params = "bookmark-name",
 	description = "Delete a bookmark",
 	func = betterBookmarks.deleteBookmark
+})
+
+minetest.register_chatcommand("bmls", {
+	-- params = "",
+	description = "List all your bookmarks",
+	func = betterBookmarks.listBookmarks
 })
