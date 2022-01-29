@@ -14,16 +14,8 @@ function betterBookmarks.setPos(longBookmarkName, position)
 	-- set the bookmark
 	storage:set_string(longBookmarkName, minetest.pos_to_string(position, 2))
 
-	-- check bookmark
-	local success = betterBookmarks.getPos(longBookmarkName) == position
-
-	if success then
-		minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
-		return true
-	else
-		minetest.log("error", "[better_bookmarks] failed to set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
-		return false
-	end
+	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+	return true
 end
 
 function betterBookmarks.getPos(longBookmarkName)
@@ -39,11 +31,13 @@ function betterBookmarks.delPos(longBookmarkName)
 		return false
 	end
 
-	return storage:set_string(longBookmarkName, '')
+	storage:set_string(longBookmarkName, '')
+
+	return true
 end
 
 function betterBookmarks.setBookmark(playerName, bookmarkName)
-	if bookmarkName == "" then
+	if bookmarkName == "" or string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
 		return false, "Invalid usage, see /help bmset."
 	end
 
@@ -93,7 +87,7 @@ end
 
 minetest.register_chatcommand("bmset", {
 	params = "bookmark-name",
-	description = "Set a bookmark",
+	description = "Set a bookmark. Bookmark names cannot contain '.'",
 	func = betterBookmarks.setBookmark
 })
 
