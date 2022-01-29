@@ -94,7 +94,7 @@ end
 
 function betterBookmarks.goToBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
-		return false, "Invalid usage, see /help bm"
+		return false, "Bookmark name is required"
 	end
 
 	local record = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
@@ -111,7 +111,11 @@ end
 
 function betterBookmarks.deleteBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
-		return false, "Invalid usage, see /help bmdel"
+		return false, "Bookmark name is required"
+	end
+
+	if bookmarkName == "-" then
+		return false, 'Bookmark "-" is reserved for where you were when you last successfully ran /bm'
 	end
 
 	local success = betterBookmarks.delRecord(playerName .. '.' .. bookmarkName)
