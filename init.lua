@@ -70,7 +70,7 @@ function betterBookmarks.setBookmark(playerName, bookmarkName)
 		return false, "You are not online."
 	end
 
-	local playerPosition = player.get_pos(player) -- <- that's anoying
+	local playerPosition = player:get_pos()
 
 	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, playerPosition) then
 		return true, "Bookmark set."
@@ -85,9 +85,12 @@ function betterBookmarks.goToBookmark(playerName, bookmarkName)
 	end
 
 	local bookmarkPosition = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
+	local player = minetest.get_player_by_name(playerName)
+
+	player:set_pos(bookmarkPosition.position)
 
 	if bookmarkPosition then
-		return true, minetest.pos_to_string(bookmarkPosition.position, 0)
+		return true, "Teleported to bookmark."
 	else
 		return false, "Couldn't get bookmark."
 	end
