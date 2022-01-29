@@ -1,5 +1,6 @@
 {
-    "Lua.diagnostics.globals": [
-        "minetest"
-    ]
+	"Lua.diagnostics.globals": [
+		"minetest",
+		"vector"
+	]
 }
