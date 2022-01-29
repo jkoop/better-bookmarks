@@ -39,9 +39,14 @@ function betterBookmarks.delRecord(longBookmarkName)
 		return false
 	end
 
-	storage:set_string(longBookmarkName, '')
+	local record = betterBookmarks.getRecord(longBookmarkName)
 
-	return true
+	if not record then
+		return false
+	else
+		storage:set_string(longBookmarkName, '')
+		return true
+	end
 end
 
 function betterBookmarks.listRecords(playerName)
@@ -73,15 +78,15 @@ function betterBookmarks.setBookmark(playerName, bookmarkName)
 	local playerPosition = player:get_pos()
 
 	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, playerPosition) then
-		return true, "Bookmark set."
+		return true, "Set bookmark " .. bookmarkName .. " to " .. minetest.pos_to_string(playerPosition, 0)
 	else
-		return false, "Couldn't set bookmark. This is a bug."
+		return false, "Couldn't set bookmark. This is a bug"
 	end
 end
 
 function betterBookmarks.goToBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
-		return false, "Invalid usage, see /help bm."
+		return false, "Invalid usage, see /help bm"
 	end
 
 	local bookmarkPosition = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
@@ -90,23 +95,23 @@ function betterBookmarks.goToBookmark(playerName, bookmarkName)
 	player:set_pos(bookmarkPosition.position)
 
 	if bookmarkPosition then
-		return true, "Teleported to bookmark."
+		return true, "Teleported to bookmark " .. bookmarkName
 	else
-		return false, "Couldn't get bookmark."
+		return false, "Bookmark " .. bookmarkName .. " not found"
 	end
 end
 
 function betterBookmarks.deleteBookmark(playerName, bookmarkName)
 	if bookmarkName == "" then
-		return false, "Invalid usage, see /help bmdel."
+		return false, "Invalid usage, see /help bmdel"
 	end
 
 	local success = betterBookmarks.delRecord(playerName .. '.' .. bookmarkName)
 
 	if success then
-		return true, "Removed bookmark."
+		return true, "Removed bookmark " .. bookmarkName
 	else
-		return false, "Couldn't remove bookmark."
+		return false, "Bookmark " .. bookmarkName .. " not found"
 	end
 end
 
@@ -119,7 +124,11 @@ function betterBookmarks.listBookmarks(playerName)
 		bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. '\n'
 	end
 
-	return true, bookmarks
+	if bookmarks == '' then
+		return false, "You don't have any bookmarks"
+	else
+		return true, bookmarks
+	end
 end
 
 minetest.register_chatcommand("bmset", {
