@@ -64,15 +64,23 @@ function betterBookmarks.listRecords(playerName)
 end
 
 function betterBookmarks.setBookmark(playerName, bookmarkName)
-	if bookmarkName == "" or string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
-		return false, "Invalid usage, see /help bmset."
+	if bookmarkName == "" then
+		return false, "Bookmark name is required"
+	end
+
+	if string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
+		return false, "Bookmark names cannot contain '.'"
+	end
+
+	if bookmarkName == "-" then
+		return false, "Bookmark '-' is reserved for where you were when you last successfully ran /bm"
 	end
 
 	local player = minetest.get_player_by_name(playerName)
 
 	-- player can't set bookmark if they're not in the world
 	if not minetest.is_player(player) then
-		return false, "You are not online."
+		return false, "You are not online"
 	end
 
 	local playerPosition = player:get_pos()
@@ -89,12 +97,12 @@ function betterBookmarks.goToBookmark(playerName, bookmarkName)
 		return false, "Invalid usage, see /help bm"
 	end
 
-	local bookmarkPosition = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
+	local record = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
 	local player = minetest.get_player_by_name(playerName)
 
-	player:set_pos(bookmarkPosition.position)
-
-	if bookmarkPosition then
+	if record then
+		betterBookmarks.setRecord(playerName .. '.-', playerName, player:get_pos())
+		player:set_pos(record.position)
 		return true, "Teleported to bookmark " .. bookmarkName
 	else
 		return false, "Bookmark " .. bookmarkName .. " not found"
