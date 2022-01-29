@@ -1,117 +1,198 @@
------------------------------------------------
---  Bookmarks v0.1.1 rewritten by Joe Koop   --
---  Copyright 2019 and MIT licence Joe Koop  --
---  https://joekoop.com/bookmarks/           --
------------------------------------------------
+-------------------------------------------------
+--  Copyleft 2019-2022 Joe Koop                --
+--  https://github.com/jkoop/better-bookmarks  --
+-------------------------------------------------
 
-function round(n)
-	return n % 1 >= 0.5 and math.ceil(n) or math.floor(n)
-end
+local storage = minetest.get_mod_storage()
+local betterBookmarks = {}
 
-local write_gofile = function()
-	local output = ''
-	for player, user in pairs(GONETWORK) do
-		output = output..player..'{'
-		for name, coords in pairs(GONETWORK[player]) do
-			output = output..name..'('..coords.x..','..coords.y..','..coords.z..')'
-		end
-		output = output..'}'
+function betterBookmarks.setRecord(longBookmarkName, playerName, position)
+	if not (longBookmarkName and position) then
+		return false
 	end
-	local f = io.open(minetest.get_worldpath()..'/bookmarks.dat', "w")
-    f:write(output)
-    io.close(f)
+
+	local record = betterBookmarks.getRecord(longBookmarkName) or {}
+	record.position = position
+
+	if not record.playerNames then
+		record.playerNames = {}
+	end
+
+	record.playerNames[playerName] = true
+
+	storage:set_string(longBookmarkName, minetest.serialize(record))
+
+	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+	return true
 end
 
-GONETWORK = {}
+function betterBookmarks.getRecord(longBookmarkName)
+	if not longBookmarkName then
+		return false
+	end
 
-local gonfile = io.open(minetest.get_worldpath()..'/bookmarks.dat', "r")
-if gonfile then
-	local contents = gonfile:read()
-	io.close(gonfile)
-	if contents ~= nil then
-		local users = contents:split("}")
-		for h,user in pairs(users) do
-			local player, bookmarks = unpack(user:split("{"))
-			GONETWORK[player] = {}
-			local entries = bookmarks:split(")")
-			for i,entry in pairs(entries) do
-				local goname, coords = unpack(entry:split("("))
-				local p = {}
-				p.x, p.y, p.z = string.match(coords, "^([%d.-]+)[, ] *([%d.-]+)[, ] *([%d.-]+)$")
-				if p.x and p.y and p.z then
-					GONETWORK[player][goname] = {x = tonumber(p.x),y= tonumber(p.y),z = tonumber(p.z)}
-				end
-			end
+	return minetest.deserialize(storage:get_string(longBookmarkName)) or false
+end
+
+function betterBookmarks.delRecord(longBookmarkName)
+	if not longBookmarkName then
+		return false
+	end
+
+	local record = betterBookmarks.getRecord(longBookmarkName)
+
+	if not record then
+		return false
+	else
+		storage:set_string(longBookmarkName, '')
+		return true
+	end
+end
+
+function betterBookmarks.listRecords(playerName)
+	local records = {}
+
+	for longBookmarkName, record in pairs(storage:to_table()['fields']) do
+		record = minetest.deserialize(record)
+
+		if record.playerNames[playerName] then
+			records[longBookmarkName] = record
 		end
+	end
+
+	return records
+end
+
+function betterBookmarks.setBookmark(playerName, bookmarkName)
+	if bookmarkName == "" or string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
+		return false, "Invalid usage, see /help bmset."
+	end
+
+	local player = minetest.get_player_by_name(playerName)
+
+	-- player can't set bookmark if they're not in the world
+	if not minetest.is_player(player) then
+		return false, "You are not online."
+	end
+
+	local playerPosition = player:get_pos()
+
+	if betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, playerPosition) then
+		return true, "Set bookmark " .. bookmarkName .. " to " .. minetest.pos_to_string(playerPosition, 0)
+	else
+		return false, "Couldn't set bookmark. This is a bug"
+	end
+end
+
+function betterBookmarks.goToBookmark(playerName, bookmarkName)
+	if bookmarkName == "" then
+		return false, "Invalid usage, see /help bm"
+	end
+
+	local bookmarkPosition = betterBookmarks.getRecord(playerName .. '.' .. bookmarkName)
+	local player = minetest.get_player_by_name(playerName)
+
+	player:set_pos(bookmarkPosition.position)
+
+	if bookmarkPosition then
+		return true, "Teleported to bookmark " .. bookmarkName
+	else
+		return false, "Bookmark " .. bookmarkName .. " not found"
+	end
+end
+
+function betterBookmarks.deleteBookmark(playerName, bookmarkName)
+	if bookmarkName == "" then
+		return false, "Invalid usage, see /help bmdel"
+	end
+
+	local success = betterBookmarks.delRecord(playerName .. '.' .. bookmarkName)
+
+	if success then
+		return true, "Removed bookmark " .. bookmarkName
+	else
+		return false, "Bookmark " .. bookmarkName .. " not found"
+	end
+end
+
+function betterBookmarks.listBookmarks(playerName)
+	local bookmarks = ''
+	local records = betterBookmarks.listRecords(playerName)
+
+	for longBookmarkName, record in pairs(records) do
+		local bookmarkName = longBookmarkName:match(playerName .. '.(.+)')
+		bookmarks = bookmarks .. bookmarkName .. ' at ' .. minetest.pos_to_string(record.position, 0) .. '\n'
+	end
+
+	if bookmarks == '' then
+		return false, "You don't have any bookmarks"
+	else
+		return true, bookmarks
 	end
 end
 
 minetest.register_chatcommand("bmset", {
-	params = "<bookmark name>",
-	description = "Set a bookmark",
-	func = function(name, param)
-		local target = minetest.env:get_player_by_name(name)
-		if param == "" then
-			minetest.chat_send_player(name, "Nameless bookmark rename to \"nil\"")
-			param = "nil"
-		end
-		if target then
-			if GONETWORK[name] == nil then
-				GONETWORK[name] = {}
-			end
-			GONETWORK[name][param] = target:getpos()
-			write_gofile()
-			minetest.chat_send_player(name, "Bookmark \""..param.."\" set")
-			return
-		end
-	end,
+	params = "<bookmark-name>",
+	description = "Set a bookmark. Bookmark names cannot contain '.'",
+	func = betterBookmarks.setBookmark
 })
 
 minetest.register_chatcommand("bm", {
-	params = "<bookmark name>",
-	description = "Go to bookmark",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		if GONETWORK[name][param] == nil then
-			minetest.chat_send_player(name, "No such bookmark: \""..param..'"')
-			return
-		end
-		teleportee = minetest.env:get_player_by_name(name)
-		teleportee:setpos(GONETWORK[name][param])
-		minetest.chat_send_player(name, "Teleported to bookmark \""..param.."\"")
-	end,
+	params = "<bookmark-name>",
+	description = "Go to a bookmark",
+	func = betterBookmarks.goToBookmark
 })
 
 minetest.register_chatcommand("bmdel", {
-	params = "<bookmark name>",
-	description = "Delete bookmark",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		if GONETWORK[name][param] then
-			GONETWORK[name][param] = nil
-			write_gofile()
-			minetest.chat_send_player(name, "Bookmark \""..param.."\" deleted")
-		end
-	end,
+	params = "<bookmark-name>",
+	description = "Delete a bookmark",
+	func = betterBookmarks.deleteBookmark
 })
 
 minetest.register_chatcommand("bmls", {
-	params = "<bookmark name>",
+	-- params = "",
 	description = "List all your bookmarks",
-	func = function(name, param)
-		if GONETWORK[name] == nil then
-			minetest.chat_send_player(name, "You have no bookmarks")
-			return
-		end
-		minetest.chat_send_player(name, 'Your bookmarks:')
-		for go, coords in pairs(GONETWORK[name]) do
-			minetest.chat_send_player(name, '"' ..go.. '" at '..round(coords.x)..','..round(coords.y)..','..round(coords.z))
-		end
-	end,
+	func = betterBookmarks.listBookmarks
 })
+
+-- migrate from old format --
+
+local function migrateFromOldFormat()
+	local GONETWORK = {}
+	local gonfile = io.open(minetest.get_worldpath() .. '/bookmarks.dat', "r")
+
+	if gonfile then
+		local contents = gonfile:read()
+		io.close(gonfile)
+
+		if contents ~= nil then
+			local users = contents:split("}")
+
+			for h,user in pairs(users) do
+				local player, bookmarks = unpack(user:split("{"))
+				GONETWORK[player] = {}
+				local entries = bookmarks:split(")")
+
+				for i,entry in pairs(entries) do
+					local goname, coords = unpack(entry:split("("))
+					local p = {}
+					p.x, p.y, p.z = string.match(coords, "^([%d.-]+)[, ] *([%d.-]+)[, ] *([%d.-]+)$")
+
+					if p.x and p.y and p.z then
+						GONETWORK[player][goname] = {x = tonumber(p.x),y= tonumber(p.y),z = tonumber(p.z)}
+					end
+				end
+			end
+		end
+	end
+
+	for playerName, bookmarks in pairs(GONETWORK) do
+		for bookmarkName, position in pairs(bookmarks) do
+			betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, position)
+		end
+	end
+
+	os.rename(minetest.get_worldpath() .. '/bookmarks.dat', minetest.get_worldpath() .. '/bookmarks.dat.' .. os.time() .. '.old')
+end
+
+migrateFromOldFormat();
