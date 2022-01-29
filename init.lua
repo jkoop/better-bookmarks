@@ -4,7 +4,38 @@
 -------------------------------------------------
 
 local storage = minetest.get_mod_storage()
-local betterBookmarks = {}
+local betterBookmarks = {
+	waypoints = {}
+}
+
+function betterBookmarks.removeWaypointIfPlayerIsClose()
+	for playerName, waypointId in pairs(betterBookmarks.waypoints) do
+		local player = minetest.get_player_by_name(playerName)
+		local waypoint = player:hud_get(waypointId)
+
+		if player and waypoint then
+			local playerPos = player:get_pos()
+			local waypointPos = waypoint.world_pos
+
+			if playerPos and waypointPos then
+				local distance = vector.distance(playerPos, waypointPos)
+				local record = betterBookmarks.getRecord(playerName .. '.' .. waypoint.name)
+				local shouldRemove = distance < 5
+
+				if record then
+					shouldRemove = shouldRemove or minetest.pos_to_string(record.position) ~= minetest.pos_to_string(waypointPos)
+				else
+					shouldRemove = true
+				end
+
+				if shouldRemove then
+					minetest.chat_send_player(playerName, "Removed waypoint for bookmark " .. waypoint.name)
+					player:hud_remove(waypointId)
+				end
+			end
+		end
+	end
+end
 
 function betterBookmarks.setRecord(longBookmarkName, playerName, position)
 	if not (longBookmarkName and position) then
@@ -22,7 +53,10 @@ function betterBookmarks.setRecord(longBookmarkName, playerName, position)
 
 	storage:set_string(longBookmarkName, minetest.serialize(record))
 
-	minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+	if longBookmarkName ~= playerName .. ".-" then
+		minetest.log("action", "[better_bookmarks] set bookmark " .. longBookmarkName .. " to " .. minetest.pos_to_string(position, 0))
+	end
+
 	return true
 end
 
@@ -61,6 +95,33 @@ function betterBookmarks.listRecords(playerName)
 	end
 
 	return records
+end
+
+function betterBookmarks.sendToBookmark(player, displayName, position)
+	if not (player and displayName and position) then
+		return false
+	end
+
+	if minetest.check_player_privs(player, "better_bookmarks_teleport") or minetest.check_player_privs(player, "teleport") then
+		-- teleport to bookmark
+		player:set_pos(position)
+		return true, "Teleported to bookmark " .. displayName
+	else
+		-- show waypoint for bookmark
+		if betterBookmarks.waypoints[player:get_player_name()] then
+			player:hud_remove(betterBookmarks.waypoints[player:get_player_name()])
+		end
+
+		betterBookmarks.waypoints[player:get_player_name()] = player:hud_add({
+			hud_elem_type = "waypoint",
+			name = displayName,
+			text = " blocks away",
+			number = 0x00FF00, -- full green
+			world_pos = position,
+		})
+
+		return true, "Now showing waypoint for bookmark " .. displayName
+	end
 end
 
 function betterBookmarks.setBookmark(playerName, bookmarkName)
@@ -102,8 +163,7 @@ function betterBookmarks.goToBookmark(playerName, bookmarkName)
 
 	if record then
 		betterBookmarks.setRecord(playerName .. '.-', playerName, player:get_pos())
-		player:set_pos(record.position)
-		return true, "Teleported to bookmark " .. bookmarkName
+		return betterBookmarks.sendToBookmark(player, bookmarkName, record.position)
 	else
 		return false, "Bookmark " .. bookmarkName .. " not found"
 	end
@@ -172,6 +232,14 @@ minetest.register_chatcommand("bmls", {
 	-- params = "",
 	description = "List all your bookmarks",
 	func = betterBookmarks.listBookmarks
+})
+
+minetest.register_globalstep(betterBookmarks.removeWaypointIfPlayerIsClose)
+
+minetest.register_privilege("better_bookmarks_teleport", {
+	description = "Teleport player to bookmark instead of showing waypoint",
+	give_to_singleplayer = false, -- options, man
+	give_to_admin = false,
 })
 
 -- migrate from old format --
