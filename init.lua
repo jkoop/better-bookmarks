@@ -12,7 +12,7 @@ function betterBookmarks.setRecord(longBookmarkName, playerName, position)
 	end
 
 	local record = betterBookmarks.getRecord(longBookmarkName) or {}
-	record.position = minetest.string_to_pos(minetest.pos_to_string(position, 2)) -- round the position to 2 decimal places
+	record.position = position
 
 	if not record.playerNames then
 		record.playerNames = {}
@@ -132,19 +132,19 @@ function betterBookmarks.listBookmarks(playerName)
 end
 
 minetest.register_chatcommand("bmset", {
-	params = "bookmark-name",
+	params = "<bookmark-name>",
 	description = "Set a bookmark. Bookmark names cannot contain '.'",
 	func = betterBookmarks.setBookmark
 })
 
 minetest.register_chatcommand("bm", {
-	params = "bookmark-name",
+	params = "<bookmark-name>",
 	description = "Go to a bookmark",
 	func = betterBookmarks.goToBookmark
 })
 
 minetest.register_chatcommand("bmdel", {
-	params = "bookmark-name",
+	params = "<bookmark-name>",
 	description = "Delete a bookmark",
 	func = betterBookmarks.deleteBookmark
 })
@@ -154,3 +154,45 @@ minetest.register_chatcommand("bmls", {
 	description = "List all your bookmarks",
 	func = betterBookmarks.listBookmarks
 })
+
+-- migrate from old format --
+
+local function migrateFromOldFormat()
+	local GONETWORK = {}
+	local gonfile = io.open(minetest.get_worldpath() .. '/bookmarks.dat', "r")
+
+	if gonfile then
+		local contents = gonfile:read()
+		io.close(gonfile)
+
+		if contents ~= nil then
+			local users = contents:split("}")
+
+			for h,user in pairs(users) do
+				local player, bookmarks = unpack(user:split("{"))
+				GONETWORK[player] = {}
+				local entries = bookmarks:split(")")
+
+				for i,entry in pairs(entries) do
+					local goname, coords = unpack(entry:split("("))
+					local p = {}
+					p.x, p.y, p.z = string.match(coords, "^([%d.-]+)[, ] *([%d.-]+)[, ] *([%d.-]+)$")
+
+					if p.x and p.y and p.z then
+						GONETWORK[player][goname] = {x = tonumber(p.x),y= tonumber(p.y),z = tonumber(p.z)}
+					end
+				end
+			end
+		end
+	end
+
+	for playerName, bookmarks in pairs(GONETWORK) do
+		for bookmarkName, position in pairs(bookmarks) do
+			betterBookmarks.setRecord(playerName .. '.' .. bookmarkName, playerName, position)
+		end
+	end
+
+	os.rename(minetest.get_worldpath() .. '/bookmarks.dat', minetest.get_worldpath() .. '/bookmarks.dat.' .. os.time() .. '.old')
+end
+
+migrateFromOldFormat();
