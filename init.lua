@@ -69,11 +69,11 @@ function betterBookmarks.setBookmark(playerName, bookmarkName)
 	end
 
 	if string.find(bookmarkName, '%.') then -- string.find looks for patterns, not strings
-		return false, "Bookmark names cannot contain '.'"
+		return false, 'Bookmark names cannot contain "."'
 	end
 
 	if bookmarkName == "-" then
-		return false, "Bookmark '-' is reserved for where you were when you last successfully ran /bm"
+		return false, 'Bookmark "-" is reserved for where you were when you last successfully ran /bm'
 	end
 
 	local player = minetest.get_player_by_name(playerName)
@@ -148,13 +148,13 @@ end
 
 minetest.register_chatcommand("bmset", {
 	params = "<bookmark-name>",
-	description = "Set a bookmark. Bookmark names cannot contain '.'",
+	description = 'Set a bookmark to your current position. Bookmark names may not contain "."',
 	func = betterBookmarks.setBookmark
 })
 
 minetest.register_chatcommand("bm", {
 	params = "<bookmark-name>",
-	description = "Go to a bookmark",
+	description = 'Go to bookmark. "-" is where you were when you last successfully ran /bm',
 	func = betterBookmarks.goToBookmark
 })
 

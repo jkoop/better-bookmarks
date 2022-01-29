@@ -9,9 +9,9 @@ Minetest mod to keep location bookmarks like /sethome
 
 ## Commands:
 
-| Command  | Parameters        | Description                             |
-| -------- | ----------------- | --------------------------------------- |
-| `/bm`    | `<bookmark-name>` | Go to bookmark                          |
-| `/bmset` | `<bookmark-name>` | Set a bookmark to your current position |
-| `/bmdel` | `<bookmark-name>` | Delete a bookmark                       |
-| `/bmls`  |                   | List all your bookmarks                 |
+| Command  | Parameters        | Description                                                                 |
+| -------- | ----------------- | --------------------------------------------------------------------------- |
+| `/bm`    | `<bookmark-name>` | Go to bookmark. "-" is where you were when you last successfully ran `/bm`  |
+| `/bmset` | `<bookmark-name>` | Set a bookmark to your current position. Bookmark names may not contain "." |
+| `/bmdel` | `<bookmark-name>` | Delete a bookmark                                                           |
+| `/bmls`  |                   | List all your bookmarks                                                     |
