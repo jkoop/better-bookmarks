@@ -18,6 +18,6 @@ Minetest mod to keep location bookmarks like /sethome
 
 ## Privileges
 
-| Privilege                   | Description                                                                    |
-| --------------------------- | ------------------------------------------------------------------------------ |
-| `better_bookmarks_teleport` | Teleport player to bookmark instead of showing waypoint. `teleport` also works |
+| Privilege                   | Description                                                                              |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
+| `better_bookmarks_teleport` | Teleport player to bookmark instead of showing waypoint. `teleport` will also allow this |
