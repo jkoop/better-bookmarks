@@ -11,26 +11,31 @@ local betterBookmarks = {
 function betterBookmarks.removeWaypointIfPlayerIsClose()
 	for playerName, waypointId in pairs(betterBookmarks.waypoints) do
 		local player = minetest.get_player_by_name(playerName)
-		local waypoint = player:hud_get(waypointId)
 
-		if player and waypoint then
-			local playerPos = player:get_pos()
-			local waypointPos = waypoint.world_pos
+		if not player then
+			betterBookmarks.waypoints[playerName] = nil
+		else
+			local waypoint = player:hud_get(waypointId)
 
-			if playerPos and waypointPos then
-				local distance = vector.distance(playerPos, waypointPos)
-				local record = betterBookmarks.getRecord(playerName .. '.' .. waypoint.name)
-				local shouldRemove = distance < 5
+			if player and waypoint then
+				local playerPos = player:get_pos()
+				local waypointPos = waypoint.world_pos
 
-				if record then
-					shouldRemove = shouldRemove or minetest.pos_to_string(record.position) ~= minetest.pos_to_string(waypointPos)
-				else
-					shouldRemove = true
-				end
+				if playerPos and waypointPos then
+					local distance = vector.distance(playerPos, waypointPos)
+					local record = betterBookmarks.getRecord(playerName .. '.' .. waypoint.name)
+					local shouldRemove = distance < 5
 
-				if shouldRemove then
-					minetest.chat_send_player(playerName, "Removed waypoint for bookmark " .. waypoint.name)
-					player:hud_remove(waypointId)
+					if record then
+						shouldRemove = shouldRemove or minetest.pos_to_string(record.position) ~= minetest.pos_to_string(waypointPos)
+					else
+						shouldRemove = true
+					end
+
+					if shouldRemove then
+						minetest.chat_send_player(playerName, "Removed waypoint for bookmark " .. waypoint.name)
+						player:hud_remove(waypointId)
+					end
 				end
 			end
 		end
