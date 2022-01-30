@@ -35,6 +35,7 @@ function betterBookmarks.removeWaypointIfPlayerIsClose()
 					if shouldRemove then
 						minetest.chat_send_player(playerName, "Removed waypoint for bookmark " .. waypoint.name)
 						player:hud_remove(waypointId)
+						betterBookmarks.waypoints[playerName] = nil
 					end
 				end
 			end
